@@ -1,0 +1,160 @@
+@startuml
+
+
+enum TariffType {
+  BASIC
+  BUSINESS
+  PREMIUM
+}
+
+enum TicketStatus {
+  WAITING
+  PROCESSING
+  DONE
+  REFUSED
+}
+
+enum AgentStatus {
+  FREE
+  BUSY
+}
+
+class Source {
+  - id: String
+  - tariff: TariffType
+  - genIntervalMin: double
+  - genIntervalMax: double
+  - router: TicketRouter
+  --
+  + generateTicket(): Ticket
+  - nextInterval(): double
+}
+note right of Source
+  ИБ — бесконечный источник.
+  ИЗ2 — равномерный закон генерации:
+  nextInterval() ~ Uniform(genIntervalMin, genIntervalMax)
+end note
+
+class Ticket {
+  - id: String
+  - sourceId: String
+  - tariff: TariffType
+  - createdAt: DateTime
+  - status: TicketStatus
+  - slotIndex: int
+  --
+  + getPriority(): int
+  + markProcessing(): void
+  + markDone(): void
+  + markRefused(): void
+}
+
+class TicketQueue {
+  - slots: Ticket[]
+  - capacity: int
+  - queuePtr: int
+  --
+  + findFreeSlot(): int
+  + insert(t: Ticket, slot: int): void
+  + evictAt(slot: int): Ticket
+  + selectHighestPriority(): Ticket
+  + freeSlot(slot: int): void
+  + isEmpty(): boolean
+  + isFull(): boolean
+  - advanceQueuePtr(): void
+}
+note right of TicketQueue
+  Д1ОЗ1 — insert() ищет свободный слот
+  по кольцу от queuePtr.
+  Д1ОО1 — если findFreeSlot() не нашёл место,
+  evictAt(queuePtr) вытесняет заявку под указателем.
+  Д2Б4 — selectHighestPriority() выбирает одну
+  заявку с наивысшим приоритетом тарифа.
+end note
+
+class TicketRouter {
+  - queue: TicketQueue
+  - stats: Statistics
+  --
+  + onTicketGenerated(t: Ticket): void
+  - putTicket(t: Ticket): boolean
+}
+note left of TicketRouter
+  Диспетчер постановки.
+  Работает только с очередью,
+  ничего не знает об операторах.
+  Триггер: onTicketGenerated(t).
+end note
+
+class AssignmentDispatcher {
+  - queue: TicketQueue
+  - agents: SupportAgent[]
+  - agentPtr: int
+  - stats: Statistics
+  --
+  + onQueueNotEmpty(): void
+  + onAgentFreed(a: SupportAgent): void
+  - findFreeAgent(): SupportAgent
+  - assign(t: Ticket, a: SupportAgent): void
+  - advanceAgentPtr(): void
+}
+note right of AssignmentDispatcher
+  Диспетчер выбора.
+  Д2П2 — findFreeAgent() ищет свободного
+  оператора по кольцу от agentPtr.
+  Триггеры: onQueueNotEmpty(),
+  onAgentFreed(a).
+end note
+
+class SupportAgent {
+  - status: AgentStatus
+  - currentTicket: Ticket
+  - serviceRateLambda: double
+  --
+  + isFree(): boolean
+  + process(t: Ticket): void
+  + release(): void
+  - serviceTime(): double
+}
+note right of SupportAgent
+  ПЗ1 — serviceTime() ~ Exponential(serviceRateLambda).
+end note
+
+class Statistics {
+  - totalGenerated: int
+  - totalRefused: int
+  - totalProcessed: int
+  - waitTimes: double[]
+  - serviceTimes: double[]
+  --
+  + recordGenerated(): void
+  + recordRefused(): void
+  + recordProcessed(t: Ticket, waitTime: double, serviceTime: double): void
+  + getRefusalRate(): double
+  + getAgentUtilization(): double
+}
+
+' связи
+
+Source "1" --> "1" TicketRouter : router >
+Source ..> Ticket : создаёт >
+
+TicketRouter "1" o-- "1" TicketQueue : queue >
+TicketRouter ..> Ticket : принимает >
+TicketRouter --> Statistics : stats >
+
+AssignmentDispatcher "1" o-- "1" TicketQueue : queue >
+AssignmentDispatcher "1" o-- "*" SupportAgent : agents >
+AssignmentDispatcher --> Statistics : stats >
+AssignmentDispatcher ..> Ticket : выбирает/назначает >
+
+TicketQueue "1" *-- "0..*" Ticket : slots >
+
+SupportAgent "1" --> "0..1" Ticket : currentTicket >
+
+Ticket --> TariffType : tariff >
+Ticket --> TicketStatus : status >
+Source --> TariffType : tariff >
+SupportAgent --> AgentStatus : status >
+
+@enduml
