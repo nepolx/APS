@@ -1,0 +1,68 @@
+@startuml
+actor      Source_Basic          as SrcB
+actor      Source_Business       as SrcS
+actor      Source_Premium        as SrcP
+control    TicketRouter          as Router
+queue      TicketQueue           as Queue
+control    AssignmentDispatcher  as Dispatcher
+participant SupportAgent         as Agent
+
+note over SrcB, SrcP
+  Источники (ИБ) — бесконечные потоки обращений клиентов
+  тарифов Basic / Business / Premium.
+  Интервал между обращениями каждого источника — ИЗ2
+  (равномерный закон генерации).
+  Приоритет источника при выборе из буфера: Premium > Business > Basic.
+end note
+
+== Поступление новой заявки ==
+
+SrcP -> Router: Новый тикет (клиент тарифа Premium)
+ref over Router
+  Регистрация заявки: время генерации, id источника,
+  приоритет тарифа (см. закон генерации ИЗ2)
+end ref
+
+Router -> Queue: Поиск свободного слота (Д1ОЗ1 — постановка "по кольцу" от указателя QUEUE_PTR)
+
+alt Свободное место найдено
+  Queue --> Router: Место найдено, слот N
+  Router -> Queue: Постановка заявки в слот N, указатель QUEUE_PTR -> N+1
+  note right of Queue: Постановка в буфер (Д1ОЗ1)
+else Буфер переполнен: указатель обошёл всю очередь, свободного места нет
+  Queue --> Router: Свободных мест нет
+  Router -> Queue: Отказ заявки, стоящей на позиции указателя QUEUE_PTR (Д1ОО1)
+  Queue -> Queue: Заявка на позиции QUEUE_PTR закрывается как необработанная (независимо от её тарифа)
+  Router -> Queue: Постановка новой заявки на освободившееся место, QUEUE_PTR -> QUEUE_PTR+1
+end
+
+== Обработка сообщения из очереди ==
+
+Queue -> Dispatcher: Событие "в очереди появилась новая заявка"
+
+loop Пока есть необработанные заявки в очереди
+
+  Dispatcher -> Agent: Поиск свободного оператора (Д2П2 — по кольцу от указателя AGENT_PTR)
+
+  alt Оператор свободен сразу
+    Agent --> Dispatcher: Оператор свободен (слот K)
+  else Все операторы заняты
+    Agent --> Dispatcher: Свободных операторов нет
+    loop Ожидание освобождения оператора
+      Dispatcher -> Dispatcher: Проверка события\n"оператор освободился"
+    end
+    Agent --> Dispatcher: Оператор освободился (слот K)
+  end
+
+  Dispatcher -> Queue: Выбрать одну заявку с наивысшим приоритетом источника (Д2Б4)
+  Queue --> Dispatcher: Заявка выбрана (тариф Premium), слот M освобождён
+
+  Dispatcher -> Agent: Назначение заявки оператору K, указатель AGENT_PTR -> следующий оператор
+  note right of Agent: Постановка на прибор (Д2П2)
+
+  Agent -> Agent: Обработка заявки (ПЗ1 — экспоненциальный закон обслуживания)
+  Agent --> Dispatcher: Заявка обработана, оператор K свободен
+
+end
+
+@enduml
