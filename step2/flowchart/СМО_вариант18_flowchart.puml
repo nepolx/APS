@@ -1,0 +1,31 @@
+@startuml
+|Source|
+start
+:Создается ticket и передается TicketRouter (ИЗ2);
+
+|TicketRouter|
+if (Queue есть свободный слот?) then (да)
+  :Ticket кладется в буфер (Д1ОЗ1);
+else (нет)
+  :Отказ заявки, стоящей на позиции указателя (Д1ОО1);
+  :Statistics.recordRefused();
+  :Ticket встает на место указателя;
+endif
+:Statistics.recordGenerated();
+
+|AssignmentDispatcher|
+if (Оператор свободен?) then (да)
+  :Поиск свободного оператора по кольцу (Д2П2);
+else (нет)
+  repeat
+    :Ожидание освобождения оператора;
+  repeat while (Оператор освободился?) is (нет) not (да)
+endif
+:Выбор заявки с наивысшим приоритетом источника из буфера (Д2Б4);
+:Назначение заявки оператору K (Д2П2);
+
+|SupportAgent|
+:Обработка заявки (ПЗ1 — экспоненциальный закон обслуживания);
+:Statistics.recordProcessed();
+stop
+@enduml
