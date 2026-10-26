@@ -33,7 +33,7 @@ public class Source {
         return new Ticket(ticketId, this.id, randomTariff, currentTime);
     }
 
-    /** ИЗ2 — равномерный закон */
+    /** ИЗ2 — равномерный закон: genIntervalMin + random.nextDouble() * (genIntervalMax - genIntervalMin). */
     public double nextInterval() {
         return genIntervalMin + random.nextDouble() * (genIntervalMax - genIntervalMin);
     }

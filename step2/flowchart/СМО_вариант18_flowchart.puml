@@ -1,6 +1,14 @@
 @startuml
-|Source|
+
 start
+|Simulation|
+:Инициализация Simulation и EventCalendar;
+:Запланировать первые события поступления заявок;
+while (Есть события в EventCalendar и не достигнут конец моделирования?) is (да)
+  :Извлечь ближайшее SimulationEvent;
+  :Перевести текущее время к времени события;
+
+|Source|
 :Создается ticket и передается TicketRouter (ИЗ2);
 
 |TicketRouter|
@@ -27,5 +35,10 @@ endif
 |SupportAgent|
 :Обработка заявки (ПЗ1 — экспоненциальный закон обслуживания);
 :Statistics.recordProcessed();
+|EventCalendar|
+:Запланировать событие окончания обслуживания;
+|Simulation|
+endwhile (нет)
+:Вывести результаты моделирования;
 stop
 @enduml

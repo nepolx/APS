@@ -52,6 +52,9 @@ public class TicketQueue {
 
     public Ticket evictAt(double now) {
         Ticket refused = slots[queuePtr];
+        if (refused == null) {
+            return null;
+        }
         refused.markRefused(now);
         slots[queuePtr] = null;
         return refused;

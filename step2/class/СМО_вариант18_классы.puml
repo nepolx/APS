@@ -25,6 +25,7 @@ class Source {
   - genIntervalMin: double
   - genIntervalMax: double
   - router: TicketRouter
+  - ticketCounter: int
   --
   + generateTicket(): Ticket
   - nextInterval(): double
@@ -134,6 +135,54 @@ class Statistics {
   + getAgentUtilization(): double
 }
 
+enum EventType {
+  TICKET_GENERATED
+  SERVICE_COMPLETED
+}
+
+class Simulation {
+  - currentTime: double
+  - endTime: double
+  - maxGeneratedTickets: int
+  - generatedTickets: int
+  - sources: Source[]
+  - eventCalendar: EventCalendar
+  - router: TicketRouter
+  - dispatcher: AssignmentDispatcher
+  - agents: SupportAgent[]
+  - stats: Statistics
+  --
+  + start(): void
+  + runNextEvent(): void
+  + runUntilFinished(): void
+  - handleEvent(event: SimulationEvent): void
+  - handleTicketGenerated(source: Source): void
+  - handleServiceCompleted(agent: SupportAgent): void
+  - scheduleNextArrival(source: Source): void
+  - scheduleServiceCompletion(agent: SupportAgent, time: double): void
+  - isFinished(): boolean
+}
+
+class EventCalendar {
+  - events: PriorityQueue<SimulationEvent>
+  --
+  + schedule(event: SimulationEvent): void
+  + getNextEvent(): SimulationEvent
+  + isEmpty(): boolean
+  + peekNextTime(): double
+}
+
+class SimulationEvent {
+  - time: double
+  - type: EventType
+  - source: Source
+  - agent: SupportAgent
+  --
+  + getTime(): double
+  + getType(): EventType
+}
+
+
 ' связи
 
 Source "1" --> "1" TicketRouter : router >
@@ -156,5 +205,17 @@ Ticket --> TariffType : tariff >
 Ticket --> TicketStatus : status >
 Source --> TariffType : tariff >
 SupportAgent --> AgentStatus : status >
+
+Simulation *-- EventCalendar
+Simulation *-- "1..*" Source
+Simulation *-- TicketRouter
+Simulation *-- AssignmentDispatcher
+Simulation *-- "1..*" SupportAgent
+Simulation *-- Statistics
+
+EventCalendar *-- "0..*" SimulationEvent
+SimulationEvent --> EventType
+SimulationEvent --> Source
+SimulationEvent --> SupportAgent
 
 @enduml
