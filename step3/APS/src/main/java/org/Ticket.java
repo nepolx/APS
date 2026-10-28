@@ -52,14 +52,6 @@ public class Ticket {
         return tariff;
     }
 
-    public double getCreatedAt() {
-        return createdAt;
-    }
-
-    public TicketStatus getStatus() {
-        return status;
-    }
-
     public Integer getSlotIndex() {
         return slotIndex;
     }

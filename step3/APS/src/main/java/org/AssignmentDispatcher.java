@@ -7,12 +7,10 @@ public class AssignmentDispatcher {
     private final TicketQueue queue;
     private final SupportAgent[] agents;
     private int agentPtr = 0;
-    private final Statistics stats;
 
-    public AssignmentDispatcher(TicketQueue queue, SupportAgent[] agents, Statistics stats) {
+    public AssignmentDispatcher(TicketQueue queue, SupportAgent[] agents) {
         this.queue = queue;
         this.agents = agents;
-        this.stats = stats;
     }
 
     public Optional<AssignmentResult> onQueueNotEmpty(double now) {
@@ -36,12 +34,12 @@ public class AssignmentDispatcher {
 
         double duration = agent.process(ticket, now);
 
-        advanceAgentPtr(agent);
+        advanceAgentPtr();
 
         return new AssignmentResult(agent, duration);
     }
 
-    private void advanceAgentPtr(SupportAgent agent) {
+    private void advanceAgentPtr() {
         agentPtr = (agentPtr + 1) % agents.length;
     }
 
@@ -59,5 +57,9 @@ public class AssignmentDispatcher {
 
     public Optional<AssignmentResult> onAgentFreed(SupportAgent agent, double now) {
         return onQueueNotEmpty(now);
+    }
+
+    public int getAgentPtr() {
+        return agentPtr;
     }
 }

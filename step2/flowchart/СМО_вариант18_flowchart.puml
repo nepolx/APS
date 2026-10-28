@@ -1,44 +1,57 @@
 @startuml
+title СМО, вариант 18: flowchart
 
 start
 |Simulation|
-:Инициализация Simulation и EventCalendar;
-:Запланировать первые события поступления заявок;
-while (Есть события в EventCalendar и не достигнут конец моделирования?) is (да)
-  :Извлечь ближайшее SimulationEvent;
-  :Перевести текущее время к времени события;
+:Запланировать первое ARRIVAL от каждого источника;
 
-|Source|
-:Создается ticket и передается TicketRouter (ИЗ2);
+while (Календарь не пуст?) is (да)
+  |EventCalendar|
+  :Извлечь ближайшее событие;
+  |Simulation|
+  :currentTime = время события;
 
-|TicketRouter|
-if (Queue есть свободный слот?) then (да)
-  :Ticket кладется в буфер (Д1ОЗ1);
-else (нет)
-  :Отказ заявки, стоящей на позиции указателя (Д1ОО1);
-  :Statistics.recordRefused();
-  :Ticket встает на место указателя;
-endif
-:Statistics.recordGenerated();
+  if (Тип события?) then (ARRIVAL)
+    |Source|
+    :Создать заявку (ИБ), вычислить интервал (ИЗ2);
+    |Simulation|
+    :recordGenerated, запланировать следующий ARRIVAL;
+    |TicketRouter|
+    if (Есть свободный слот по кольцу от QUEUE_PTR? (Д1ОЗ1)) then (да)
+      :Поставить заявку в слот N, QUEUE_PTR = N+1;
+    else (нет)
+      :Отказ заявке в слоте QUEUE_PTR (Д1ОО1),\nrecordRefused;
+      :Поставить новую заявку на это место, QUEUE_PTR = P+1;
+    endif
+  else (SERVICE_COMPLETED)
+    |SupportAgent|
+    :Освободить прибор;
+    |Statistics|
+    :recordCompleted;
+  endif
 
-|AssignmentDispatcher|
-if (Оператор свободен?) then (да)
-  :Поиск свободного оператора по кольцу (Д2П2);
-else (нет)
-  repeat
-    :Ожидание освобождения оператора;
-  repeat while (Оператор освободился?) is (нет) not (да)
-endif
-:Выбор заявки с наивысшим приоритетом источника из буфера (Д2Б4);
-:Назначение заявки оператору K (Д2П2);
+  |AssignmentDispatcher|
+  if (Буфер не пуст?) then (да)
+    if (Есть свободный прибор по кольцу от AGENT_PTR? (Д2П2)) then (да)
+      :Выбрать одну заявку с наивысшим приоритетом (Д2Б4);
+      |SupportAgent|
+      :Обслуживание заявки (ПЗ1);
+      |AssignmentDispatcher|
+      :AGENT_PTR = K+1;
+      |EventCalendar|
+      :Запланировать SERVICE_COMPLETED;
+    else (нет)
+      :Заявка остаётся в буфере до освобождения прибора;
+    endif
+  else (нет)
+    :Назначать нечего;
+  endif
 
-|SupportAgent|
-:Обработка заявки (ПЗ1 — экспоненциальный закон обслуживания);
-:Statistics.recordProcessed();
-|EventCalendar|
-:Запланировать событие окончания обслуживания;
-|Simulation|
+  |Simulation|
+  :Показать состояние: календарь, буфер, указатели (ОД3);
 endwhile (нет)
-:Вывести результаты моделирования;
+
+|Statistics|
+:Вывести таблицы результатов (ОР1);
 stop
 @enduml

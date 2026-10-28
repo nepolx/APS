@@ -16,33 +16,14 @@ public class TicketRouter {
         this.stats = stats;
     }
 
-    /**
-     * Триггер: Source только что сгенерировал заявку (сравните с
-     * sequence-диаграммой: SrcX -> Router: Новый тикет).
-     *
-     * TODO, строго в этом порядке (см. sequence-диаграмму):
-     *   1. stats.recordGenerated()
-     *   2. int slot = queue.findFreeSlot()
-     *   3. if (slot != -1) {
-     *          queue.insert(ticket, slot, now);           // Д1ОЗ1
-     *      } else {
-     *          // буфер переполнен — указатель обошёл всё кольцо
-     *          int victimSlot = queue.getQueuePtr();
-     *          Ticket victim = queue.evictAt(victimSlot, now);  // Д1ОО1
-     *          stats.recordRefused(victim);
-     *          queue.insert(ticket, victimSlot, now);
-     *      }
-     */
     public void onTicketGenerated(Ticket ticket, double now) {
-        stats.recordGenerated();
         int slot = queue.findFreeSlot();
         if (slot != -1) {
                queue.insert(ticket, slot, now);           // Д1ОЗ1
            } else {
-               // буфер переполнен — указатель обошёл всё кольцо
                int victimSlot = queue.getQueuePtr();
                Ticket victim = queue.evictAt(now);  // Д1ОО1
-               stats.recordRefused(victim);
+               stats.recordRefused(victim.getSourceId());
                queue.insert(ticket, victimSlot, now);
            }
     }

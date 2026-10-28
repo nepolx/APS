@@ -1,5 +1,6 @@
 @startuml
-
+title СМО, вариант 18: диаграмма классов
+skinparam classAttributeIconSize 0
 
 enum TariffType {
   BASIC
@@ -19,35 +20,45 @@ enum AgentStatus {
   BUSY
 }
 
+enum EventType {
+  ARRIVAL
+  SERVICE_COMPLETED
+}
+
 class Source {
   - id: String
   - tariff: TariffType
   - genIntervalMin: double
   - genIntervalMax: double
-  - router: TicketRouter
   - ticketCounter: int
   --
-  + generateTicket(): Ticket
-  - nextInterval(): double
+  + generateTicket(now: double): Ticket
+  + nextInterval(): double
+  + getId(): String
 }
 note right of Source
-  ИБ — бесконечный источник.
-  ИЗ2 — равномерный закон генерации:
-  nextInterval() ~ Uniform(genIntervalMin, genIntervalMax)
+  ИБ, ИЗ2: nextInterval() ~ Uniform(genIntervalMin, genIntervalMax)
 end note
 
 class Ticket {
   - id: String
   - sourceId: String
   - tariff: TariffType
-  - createdAt: DateTime
   - status: TicketStatus
   - slotIndex: int
+  - createdAt: double
+  - queuedAt: double
+  - serviceStartedAt: double
+  - finishedAt: double
   --
   + getPriority(): int
-  + markProcessing(): void
-  + markDone(): void
-  + markRefused(): void
+  + getSlotIndex(): int
+  + getSourceId(): String
+  + getQueuedAt(): double
+  + getServiceStartedAt: double
+  + markProcessing(now: double): void
+  + markDone(now: double): void
+  + markRefused(now: double): void
 }
 
 class TicketQueue {
@@ -56,88 +67,101 @@ class TicketQueue {
   - queuePtr: int
   --
   + findFreeSlot(): int
-  + insert(t: Ticket, slot: int): void
-  + evictAt(slot: int): Ticket
+  + insert(t: Ticket, slot: int, now: double): void
+  + evictAt(now: double): Ticket
   + selectHighestPriority(): Ticket
   + freeSlot(slot: int): void
   + isEmpty(): boolean
-  + isFull(): boolean
-  - advanceQueuePtr(): void
+  + getQueuePtr(): int
+  + getSlots(): Ticket[]
+  + getQueuePtr(): int
 }
 note right of TicketQueue
-  Д1ОЗ1 — insert() ищет свободный слот
-  по кольцу от queuePtr.
-  Д1ОО1 — если findFreeSlot() не нашёл место,
-  evictAt(queuePtr) вытесняет заявку под указателем.
-  Д2Б4 — selectHighestPriority() выбирает одну
-  заявку с наивысшим приоритетом тарифа.
+  Д1ОЗ1: findFreeSlot() ищет слот по кольцу от queuePtr
+  Д1ОО1: evictAt() вытесняет заявку под queuePtr
+  Д2Б4: selectHighestPriority() выбирает одну заявку
+  с наивысшим приоритетом (при равенстве - более раннюю)
 end note
 
 class TicketRouter {
   - queue: TicketQueue
   - stats: Statistics
   --
-  + onTicketGenerated(t: Ticket): void
-  - putTicket(t: Ticket): boolean
+  + onTicketGenerated(t: Ticket, now: double): void
 }
 note left of TicketRouter
   Диспетчер постановки.
-  Работает только с очередью,
-  ничего не знает об операторах.
-  Триггер: onTicketGenerated(t).
+  Работает только с буфером.
+  Триггер: приход новой заявки.
 end note
 
 class AssignmentDispatcher {
   - queue: TicketQueue
   - agents: SupportAgent[]
   - agentPtr: int
-  - stats: Statistics
   --
-  + onQueueNotEmpty(): void
-  + onAgentFreed(a: SupportAgent): void
+  + onQueueNotEmpty(now: double): AssignmentResult
+  + onAgentFreed(a: SupportAgent, now: double): AssignmentResult
   - findFreeAgent(): SupportAgent
-  - assign(t: Ticket, a: SupportAgent): void
-  - advanceAgentPtr(): void
+  - assign(t: Ticket, a: SupportAgent, now: double): AssignmentResult
 }
 note right of AssignmentDispatcher
   Диспетчер выбора.
-  Д2П2 — findFreeAgent() ищет свободного
-  оператора по кольцу от agentPtr.
-  Триггеры: onQueueNotEmpty(),
-  onAgentFreed(a).
+  Д2П2: findFreeAgent() ищет прибор по кольцу от agentPtr.
+  Триггеры: onQueueNotEmpty(), onAgentFreed().
+  Нет свободного прибора - возвращает null.
 end note
 
+class AssignmentResult <<record>> {
+  + agent: SupportAgent
+  + serviceDuration: double
+}
+
 class SupportAgent {
+  - id: String
   - status: AgentStatus
   - currentTicket: Ticket
   - serviceRateLambda: double
+  - busyTime: double
   --
   + isFree(): boolean
-  + process(t: Ticket): void
-  + release(): void
+  + process(t: Ticket, now: double): double
+  + release(now: double): Ticket
   - serviceTime(): double
 }
 note right of SupportAgent
-  ПЗ1 — serviceTime() ~ Exponential(serviceRateLambda).
+  ПЗ1: serviceTime() ~ Exponential(serviceRateLambda)
 end note
 
 class Statistics {
-  - totalGenerated: int
-  - totalRefused: int
-  - totalProcessed: int
-  - waitTimes: double[]
-  - serviceTimes: double[]
+  - generatedCount: Map<String, Integer>
+  - refusedBySource: Map<String, Integer>
+  - sumWait: Map<String, Double>
+  - sumService: Map<String, Double>
   --
-  + recordGenerated(): void
-  + recordRefused(): void
-  + recordProcessed(t: Ticket, waitTime: double, serviceTime: double): void
-  + getRefusalRate(): double
-  + getAgentUtilization(): double
+  + recordGenerated(s: String): void
+  + recordRefused(s: String): void
+  + timeBuffAndService(t: Ticket): void
+  + printStatistics(): void
+}
+note right of Statistics
+  ОР1: таблица по источникам (pотк, TБП, Tобсл, Tпреб)
+  и по приборам (Kисп = busyTime / totalTime)
+end note
+
+class SimulationEvent <<record>> {
+  + time: double
+  + type: EventType
+  + agent: SupportAgent
+  + source: Source
 }
 
-enum EventType {
-  TICKET_GENERATED
-  SERVICE_COMPLETED
+class EventCalendar {
+  - events: PriorityQueue<SimulationEvent>
+  --
+  + schedule(event: SimulationEvent): void
+  + nextEvent(): SimulationEvent
+  + isEmpty(): boolean
 }
 
 class Simulation {
@@ -146,76 +170,50 @@ class Simulation {
   - maxGeneratedTickets: int
   - generatedTickets: int
   - sources: Source[]
+  - agents: SupportAgent[]
   - eventCalendar: EventCalendar
   - router: TicketRouter
   - dispatcher: AssignmentDispatcher
-  - agents: SupportAgent[]
   - stats: Statistics
+  - queue: TicketQueue
   --
   + start(): void
   + runNextEvent(): void
   + runUntilFinished(): void
-  - handleEvent(event: SimulationEvent): void
-  - handleTicketGenerated(source: Source): void
+  + printState(): void
+  - handleArrival(source: Source): void
   - handleServiceCompleted(agent: SupportAgent): void
   - scheduleNextArrival(source: Source): void
   - scheduleServiceCompletion(agent: SupportAgent, time: double): void
-  - isFinished(): boolean
 }
-
-class EventCalendar {
-  - events: PriorityQueue<SimulationEvent>
-  --
-  + schedule(event: SimulationEvent): void
-  + getNextEvent(): SimulationEvent
-  + isEmpty(): boolean
-  + peekNextTime(): double
-}
-
-class SimulationEvent {
-  - time: double
-  - type: EventType
-  - source: Source
-  - agent: SupportAgent
-  --
-  + getTime(): double
-  + getType(): EventType
-}
-
-
-' связи
-
-Source "1" --> "1" TicketRouter : router >
-Source ..> Ticket : создаёт >
-
-TicketRouter "1" o-- "1" TicketQueue : queue >
-TicketRouter ..> Ticket : принимает >
-TicketRouter --> Statistics : stats >
-
-AssignmentDispatcher "1" o-- "1" TicketQueue : queue >
-AssignmentDispatcher "1" o-- "*" SupportAgent : agents >
-AssignmentDispatcher --> Statistics : stats >
-AssignmentDispatcher ..> Ticket : выбирает/назначает >
-
-TicketQueue "1" *-- "0..*" Ticket : slots >
-
-SupportAgent "1" --> "0..1" Ticket : currentTicket >
-
-Ticket --> TariffType : tariff >
-Ticket --> TicketStatus : status >
-Source --> TariffType : tariff >
-SupportAgent --> AgentStatus : status >
 
 Simulation *-- EventCalendar
 Simulation *-- "1..*" Source
+Simulation *-- "1..*" SupportAgent
 Simulation *-- TicketRouter
 Simulation *-- AssignmentDispatcher
-Simulation *-- "1..*" SupportAgent
 Simulation *-- Statistics
 
+TicketRouter o-- TicketQueue : queue
+TicketRouter o-- Statistics : stats
+
+AssignmentDispatcher o-- TicketQueue : queue
+AssignmentDispatcher o-- "*" SupportAgent : agents
+AssignmentDispatcher ..> AssignmentResult
+
+TicketQueue "1" *-- "0..*" Ticket : slots
+SupportAgent "1" --> "0..1" Ticket : currentTicket
+
+Source ..> Ticket : создаёт
 EventCalendar *-- "0..*" SimulationEvent
-SimulationEvent --> EventType
 SimulationEvent --> Source
 SimulationEvent --> SupportAgent
+SimulationEvent --> EventType
+AssignmentResult --> SupportAgent
+
+Ticket --> TariffType
+Ticket --> TicketStatus
+Source --> TariffType
+SupportAgent --> AgentStatus
 
 @enduml

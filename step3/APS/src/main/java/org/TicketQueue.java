@@ -16,17 +16,14 @@ public class TicketQueue {
 
     private final Ticket[] slots;
     private final int capacity;
-    private int queuePtr = 0; // единственный указатель буфера (Д1ОЗ1 / Д1ОО1)
+    private int queuePtr = 0; // единственный указатель буфера
 
     public TicketQueue(int capacity) {
         this.capacity = capacity;
         this.slots = new Ticket[capacity];
     }
 
-    // ------------------------------------------------------------------
     // Постановка (Д1ОЗ1)
-    // ------------------------------------------------------------------
-
 
     public int findFreeSlot() {
         for (int i = 0; i < capacity; i++) {
@@ -49,7 +46,6 @@ public class TicketQueue {
     // Отказ / вытеснение (Д1ОО1) — вызывается ТОЛЬКО если findFreeSlot() == -1
     // ------------------------------------------------------------------
 
-
     public Ticket evictAt(double now) {
         Ticket refused = slots[queuePtr];
         if (refused == null) {
@@ -64,14 +60,6 @@ public class TicketQueue {
     // Выборка (Д2Б4)
     // ------------------------------------------------------------------
 
-    /**
-     * TODO: пройти по всем занятым слотам (НЕ по кольцу — просто перебор),
-     * вернуть заявку с максимальным ticket.getPriority().
-     * При равенстве приоритета — более старую заявку (меньший queuedAt).
-     * Если буфер пуст — вернуть null.
-     * ВАЖНО: этот метод только НАХОДИТ заявку, не удаляет её из буфера —
-     * слот освобождается отдельным вызовом freeSlot() (см. ниже).
-     */
     public Ticket selectHighestPriority() {
         double earliest_queuedAt = 0;
         int highest_slot = -1;
@@ -104,17 +92,11 @@ public class TicketQueue {
         return slots[highest_slot];
     }
 
-    /**
-     * TODO: slots[slot] = null — вызывается после того, как
-     * выбранная заявка физически передана на прибор.
-     */
+
     public void freeSlot(int slot) {
         slots[slot] = null;
     }
 
-    // ------------------------------------------------------------------
-    // Проверки состояния
-    // ------------------------------------------------------------------
 
     public boolean isEmpty() {
         for (int i=0; i < capacity; i++) {
@@ -141,6 +123,11 @@ public class TicketQueue {
     public int getCapacity() {
         return capacity;
     }
+
+    public Ticket[] getSlots() {
+        return slots;
+    }
+
 
     // ------------------------------------------------------------------
     // Для пошагового режима — календарь событий (п.3 памятки):

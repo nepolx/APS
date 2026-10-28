@@ -24,4 +24,18 @@ public class EventCalendar {
     public int size() {
         return events.size();
     }
+
+    public java.util.List<SimulationEvent> getEvents() {
+        java.util.PriorityQueue<SimulationEvent> copy =
+                new java.util.PriorityQueue<>(events);
+
+        java.util.List<SimulationEvent> result =
+                new java.util.ArrayList<>();
+
+        while (!copy.isEmpty()) {
+            result.add(copy.poll());
+        }
+
+        return result;
+    }
 }

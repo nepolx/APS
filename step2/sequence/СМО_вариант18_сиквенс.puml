@@ -1,106 +1,151 @@
 @startuml
-control    Simulation            as Sim
+title СМО, вариант 18: ИБ ИЗ2 ПЗ1 Д1ОЗ1 Д1ОО1 Д2П2 Д2Б4 ОР1 ОД3\nБизнес-домен: техподдержка клиентов (тарифы Basic / Business / Premium)
+
+control     Simulation           as Sim
 collections EventCalendar        as Calendar
-actor      Source_Basic          as SrcB
-actor      Source_Business       as SrcS
-actor      Source_Premium        as SrcP
-control    TicketRouter          as Router
-queue      TicketQueue           as Queue
-control    AssignmentDispatcher  as Dispatcher
+actor       Source               as Src
+control     TicketRouter         as Router
+queue       TicketQueue          as Queue
+control     AssignmentDispatcher as Dispatcher
 participant SupportAgent         as Agent
-participant Statistics            as Stats
+participant Statistics           as Stats
 
-note over SrcB, SrcP
-  Источники (ИБ) — бесконечные потоки обращений клиентов
-  тарифов Basic / Business / Premium.
-  Интервал между обращениями каждого источника — ИЗ2
-  (равномерный закон генерации).
-  Приоритет источника при выборе из буфера: Premium > Business > Basic.
+legend left
+  ИБ - бесконечный источник; ПЗ1 - экспоненциальный закон обслуживания Tобсл ~ Exp(lambda)
+  ОР1 - сводные таблицы по источникам и приборам; ОД3 - пошагово календарь событий, буфер, указатели
+  Остальные коды расшифрованы у соответствующих взаимодействий.
+end legend
+
+== Инициализация ==
+Sim -> Src: nextInterval()
+Src --> Sim: интервал (ИЗ2)
+Sim -> Calendar: schedule(ARRIVAL, 0 + интервал) для каждого источника
+
+== 1. Событие ARRIVAL: поступление заявки, постановка в буфер, постановка на прибор ==
+Calendar -> Sim: nextEvent() = ARRIVAL(source, t)
+Sim -> Src: generateTicket(now)
+Src --> Sim: ticket (тариф источника)
+Sim -> Stats: recordGenerated(ticket)
+Sim -> Src: nextInterval()
+note right of Src
+  ИЗ2 - закон генерации у источника:
+  равномерный, интервал ~ Uniform(min, max)
 end note
+Src --> Sim: интервал
+Sim -> Calendar: schedule(ARRIVAL, t + интервал)
 
-note over Stats
-  Статистика собирается по каждой заявке.
-  pотк = число отказов источника / число сгенерированных им заявок.
-  TБП — ожидание до начала обслуживания.
-  Tобсл — длительность обслуживания.
-  Tпреб = TБП + Tобсл.
-  Использование оператора = суммарное время занятости / время моделирования.
+Sim -> Router: onTicketGenerated(ticket, now)
+note right of Router: Триггер диспетчера постановки -\nприход новой заявки
+Router -> Queue: findFreeSlot()
+note right of Queue
+  Д1ОЗ1 - постановка заявки в буфер "по кольцу":
+  поиск свободного слота от QUEUE_PTR,
+  после слота N: QUEUE_PTR = N+1
 end note
+alt Есть свободный слот N
+  Queue --> Router: слот N
+  Router -> Queue: insert(ticket, N, now)
+  Queue --> Router: заявка в буфере, QUEUE_PTR = N+1
+else Буфер полон, свободного слота нет
+  Queue --> Router: -1
+  Router -> Queue: evictAt(now)
+  note right of Queue
+    Д1ОО1 - отказ под указателем:
+    отказ получает заявка в слоте QUEUE_PTR = P,
+    независимо от тарифа
+  end note
+  Queue --> Router: вытесненная заявка (victim)
+  Router -> Stats: recordRefused(victim)
+  Router -> Queue: insert(ticket, P, now)
+  Queue --> Router: новая заявка в слоте P, QUEUE_PTR = P+1
+end
+Router --> Sim: заявка поставлена в буфер
 
-== Инициализация моделирования ==
-
-Sim -> Calendar: Запланировать первое событие поступления от каждого источника
-
-== Поступление новой заявки ==
-
-Calendar -> Sim: Ближайшее событие поступления заявки
-Sim -> Sim: Обновить текущее модельное время
-Sim -> SrcP: Сгенерировать заявку в момент события
-SrcP --> Sim: Новый тикет (клиент тарифа Premium)
-Sim -> Stats: Учесть сгенерированную заявку источника SrcP
-Sim -> Router: Передать заявку в TicketRouter
-Router -> Queue: Поиск свободного слота (Д1ОЗ1 — постановка "по кольцу" от указателя QUEUE_PTR)
-ref over Router
-  Регистрация заявки: время генерации, id источника,
-  приоритет тарифа (см. закон генерации ИЗ2)
-end ref
-
-alt Свободное место найдено
-  Queue --> Router: Место найдено, слот N
-  Router -> Queue: Постановка заявки в слот N, указатель QUEUE_PTR -> N+1
-  note right of Queue: Постановка в буфер (Д1ОЗ1)
-else Буфер переполнен: указатель обошёл всю очередь, свободного места нет
-  Queue --> Router: Свободных мест нет
-  Router -> Queue: Отказ заявки, стоящей на позиции указателя QUEUE_PTR (Д1ОО1)
-  Queue -> Queue: Заявка на позиции QUEUE_PTR закрывается как необработанная (независимо от её тарифа)
-  Queue --> Router: Вытесненная заявка и её источник
-  Router -> Stats: Учесть отказ вытесненной заявки у её источника
-  Router -> Queue: Постановка новой заявки на освободившееся место, QUEUE_PTR -> QUEUE_PTR+1
+Sim -> Dispatcher: onQueueNotEmpty(now) ищем агента и даем ему тикет
+note right of Dispatcher: Триггер диспетчера выбора №1 -\nв буфере появилась заявка
+Dispatcher -> Agent: isFree() по кольцу от AGENT_PTR
+note right of Agent
+  Д2П2 - постановка на прибор "по кольцу":
+  поиск свободного прибора от AGENT_PTR,
+  после прибора K: AGENT_PTR = K+1
+end note
+alt HappyFlow: прибор K свободен
+  Agent --> Dispatcher: прибор K свободен
+  Dispatcher -> Queue: selectHighestPriority()
+  note right of Queue
+    Д2Б4 - выбор заявки из буфера: одна заявка с наивысшим
+    приоритетом источника (Premium > Business > Basic),
+    при равенстве - более ранняя
+  end note
+  Queue --> Dispatcher: заявка
+  Dispatcher -> Queue: freeSlot(slotIndex)
+  Dispatcher -> Agent: process(ticket, now)
+  Agent --> Dispatcher: длительность Tобсл (ПЗ1)
+  Dispatcher --> Sim: AssignmentResult(K, Tобсл)
+  Sim -> Calendar: schedule(SERVICE_COMPLETED, now + Tобсл)
+else Все приборы заняты
+  Agent --> Dispatcher: свободных нет
+  Dispatcher --> Sim: нет назначения, заявка остаётся в буфере
 end
 
-Sim -> Calendar: Запланировать следующее поступление от SrcP
-
-== Обработка сообщения из очереди ==
-
-Queue -> Dispatcher: Событие "в очереди появилась новая заявка"
-
-loop Пока есть необработанные заявки в очереди
-
-  Dispatcher -> Agent: Поиск свободного оператора (Д2П2 — по кольцу от указателя AGENT_PTR)
-
-  alt Оператор свободен сразу
-    Agent --> Dispatcher: Оператор свободен (слот K)
-  else Все операторы заняты
-    Agent --> Dispatcher: Свободных операторов нет
-    loop Ожидание освобождения оператора
-      Dispatcher -> Dispatcher: Проверка события\n"оператор освободился"
-    end
-    Agent --> Dispatcher: Оператор освободился (слот K)
-  end
-
-  Dispatcher -> Queue: Выбрать одну заявку с наивысшим приоритетом источника (Д2Б4)
-  Queue --> Dispatcher: Заявка выбрана (тариф Premium), слот M освобождён
-
-  Dispatcher -> Agent: Назначение заявки оператору K, указатель AGENT_PTR -> следующий оператор
-  Dispatcher -> Stats: Зафиксировать время начала обслуживания и рассчитать ожидание (TБП)
-  note right of Agent: Постановка на прибор (Д2П2)
-
-  Agent -> Agent: Обработка заявки (ПЗ1 — экспоненциальный закон обслуживания)
-  Sim -> Calendar: Запланировать событие окончания обслуживания
-  Calendar -> Sim: Событие окончания обслуживания
-  Sim -> Agent: Освободить оператора и завершить обслуживание
-  Agent --> Dispatcher: Заявка обработана, оператор K свободен
-  Dispatcher -> Stats: Зафиксировать Tобсл и Tпреб = TБП + Tобсл
-  Stats -> Stats: Обновить суммы и суммы квадратов TБП и Tобсл
-  Stats -> Stats: Учесть время занятости оператора K
+== 2. Событие SERVICE_COMPLETED: окончание обслуживания, выборка из буфера ==
+Calendar -> Sim: nextEvent() = SERVICE_COMPLETED(agent K, t)
+Sim -> Agent: release(now)
+Agent --> Sim: завершённая заявка
+Sim -> Stats: recordCompleted(ticket)
+note right of Stats: TБП, Tобсл, Tпреб = TБП + Tобсл,\nзанятость прибора K
+Sim -> Dispatcher: onAgentFreed(agent K, now)
+note right of Dispatcher: Триггер диспетчера выбора №2 -\nосвобождение прибора
+alt Буфер не пуст
+  Dispatcher -> Queue: selectHighestPriority() (Д2Б4)
+  Queue --> Dispatcher: заявка с наивысшим приоритетом
+  Dispatcher -> Queue: freeSlot(slotIndex)
+  Dispatcher -> Agent: process(ticket, now) (Д2П2)
+  Agent --> Dispatcher: длительность Tобсл (ПЗ1)
+  Dispatcher --> Sim: AssignmentResult(agent, Tобсл), AGENT_PTR = K+1
+  Sim -> Calendar: schedule(SERVICE_COMPLETED, now + Tобсл)
+else Буфер пуст
+  Dispatcher --> Sim: нет назначения, прибор простаивает
 end
 
-== Завершение моделирования ==
+== 3. Сквозной сценарий: буфер полон + все приборы заняты -> отказ -> ожидание -> постановка на прибор ==
+note over Sim, Agent: Состояние: все слоты буфера заняты, все приборы BUSY, QUEUE_PTR = P
+Calendar -> Sim: ARRIVAL(Premium, t1)
+Sim -> Stats: recordGenerated(newTicket)
+Sim -> Router: onTicketGenerated(newTicket, t1)
+Router -> Queue: findFreeSlot() (Д1ОЗ1)
+Queue --> Router: -1 (кольцо обойдено, мест нет)
+Router -> Queue: evictAt(t1) (Д1ОО1)
+Queue --> Router: victim из слота P
+Router -> Stats: recordRefused(victim)
+Router -> Queue: insert(newTicket, P, t1)
+Queue --> Router: newTicket в слоте P, QUEUE_PTR = P+1
+Router --> Sim: заявка в буфере
+Sim -> Dispatcher: onQueueNotEmpty(t1)
+Dispatcher -> Agent: isFree() по кольцу (Д2П2)
+Agent --> Dispatcher: свободных приборов нет
+Dispatcher --> Sim: нет назначения
 
-Sim -> Stats: Рассчитать итоговые характеристики
-Stats -> Stats: Для каждого источника рассчитать pотк, средние Tпреб, TБП, Tобсл и дисперсии TБП, Tобсл
-Stats -> Stats: Для каждого оператора рассчитать коэффициент использования
-Stats --> Sim: Таблица характеристик источников и таблица характеристик приборов
+loop Ожидание освобождения прибора (по событию, не опросом)
+  Calendar -> Sim: ближайшее событие (ARRIVAL или SERVICE_COMPLETED)
+  Sim -> Sim: обработать событие, время идёт вперёд
+end
 
+Calendar -> Sim: SERVICE_COMPLETED(agent K, t2)
+Sim -> Agent: release(t2)
+Agent --> Sim: завершённая заявка
+Sim -> Stats: recordCompleted(ticket)
+Sim -> Dispatcher: onAgentFreed(agent K, t2)
+Dispatcher -> Queue: selectHighestPriority() (Д2Б4)
+Queue --> Dispatcher: newTicket (Premium)
+Dispatcher -> Queue: freeSlot(P)
+Dispatcher -> Agent: process(newTicket, t2)
+Agent --> Dispatcher: длительность Tобсл (ПЗ1)
+Dispatcher --> Sim: AssignmentResult(K, Tобсл), AGENT_PTR = K+1
+Sim -> Calendar: schedule(SERVICE_COMPLETED, t2 + Tобсл)
 
+note over Sim, Stats
+  Конец: генерация прекращена, обслуживание доводится до ухода последней заявки.
+  Итог ОР1: pотк, Tпреб, TБП, Tобсл, дисперсии, Kисп = занятость / общее время.
+end note
 @enduml

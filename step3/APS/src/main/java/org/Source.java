@@ -14,7 +14,6 @@ public class Source {
     private int ticketCounter = 0;
     private final Random random = new Random();
 
-
     public Source(String id, TariffType tariff, double genIntervalMin, double genIntervalMax) {
         this.id = id;
         this.tariff = tariff;
@@ -22,28 +21,18 @@ public class Source {
         this.genIntervalMax = genIntervalMax;
     }
 
-    public Ticket generateTicket() {
+    public Ticket generateTicket(double now) {
         String ticketId = "TKT-" + (ticketCounter++);
-
-        TariffType[] tariffs = TariffType.values();
-        TariffType randomTariff = tariffs[random.nextInt(tariffs.length)];
-
-        double currentTime = (double) System.currentTimeMillis();
-
-        return new Ticket(ticketId, this.id, randomTariff, currentTime);
+        return new Ticket(ticketId, this.id, this.tariff, now);
     }
 
-    /** ИЗ2 — равномерный закон: genIntervalMin + random.nextDouble() * (genIntervalMax - genIntervalMin). */
+    /** ИЗ2 — равномерный закон */
     public double nextInterval() {
         return genIntervalMin + random.nextDouble() * (genIntervalMax - genIntervalMin);
     }
 
     public String getId() {
         return id;
-    }
-
-    public TariffType getTariff() {
-        return tariff;
     }
 
 }
