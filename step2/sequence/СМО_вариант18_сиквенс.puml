@@ -25,7 +25,7 @@ Sim -> Calendar: schedule(ARRIVAL, 0 + интервал) для каждого �
 Calendar -> Sim: nextEvent() = ARRIVAL(source, t)
 Sim -> Src: generateTicket(now)
 Src --> Sim: ticket (тариф источника)
-Sim -> Stats: recordGenerated(ticket)
+Sim -> Stats: recordGenerated(sourceId)
 Sim -> Src: nextInterval()
 note right of Src
   ИЗ2 - закон генерации у источника:
@@ -55,7 +55,7 @@ else Буфер полон, свободного слота нет
     независимо от тарифа
   end note
   Queue --> Router: вытесненная заявка (victim)
-  Router -> Stats: recordRefused(victim)
+  Router -> Stats: recordRefused(victim.sourceId)
   Router -> Queue: insert(ticket, P, now)
   Queue --> Router: новая заявка в слоте P, QUEUE_PTR = P+1
 end
@@ -117,7 +117,7 @@ Router -> Queue: findFreeSlot() (Д1ОЗ1)
 Queue --> Router: -1 (кольцо обойдено, мест нет)
 Router -> Queue: evictAt(t1) (Д1ОО1)
 Queue --> Router: victim из слота P
-Router -> Stats: recordRefused(victim)
+Router -> Stats: recordRefused(victim.sourceId)
 Router -> Queue: insert(newTicket, P, t1)
 Queue --> Router: newTicket в слоте P, QUEUE_PTR = P+1
 Router --> Sim: заявка в буфере

@@ -34,7 +34,6 @@ class Source {
   --
   + generateTicket(now: double): Ticket
   + nextInterval(): double
-  + getId(): String
 }
 note right of Source
   ИБ, ИЗ2: nextInterval() ~ Uniform(genIntervalMin, genIntervalMax)
@@ -51,14 +50,10 @@ class Ticket {
   - serviceStartedAt: double
   - finishedAt: double
   --
-  + getPriority(): int
-  + getSlotIndex(): int
-  + getSourceId(): String
-  + getQueuedAt(): double
-  + getServiceStartedAt: double
   + markProcessing(now: double): void
   + markDone(now: double): void
   + markRefused(now: double): void
+  + getPriority(): int
 }
 
 class TicketQueue {
@@ -72,9 +67,6 @@ class TicketQueue {
   + selectHighestPriority(): Ticket
   + freeSlot(slot: int): void
   + isEmpty(): boolean
-  + getQueuePtr(): int
-  + getSlots(): Ticket[]
-  + getQueuePtr(): int
 }
 note right of TicketQueue
   Д1ОЗ1: findFreeSlot() ищет слот по кольцу от queuePtr
@@ -100,8 +92,8 @@ class AssignmentDispatcher {
   - agents: SupportAgent[]
   - agentPtr: int
   --
-  + onQueueNotEmpty(now: double): AssignmentResult
-  + onAgentFreed(a: SupportAgent, now: double): AssignmentResult
+  + onQueueNotEmpty(now: double): Optional<AssignmentResult>
+  + onAgentFreed(a: SupportAgent, now: double): Optional<AssignmentResult>
   - findFreeAgent(): SupportAgent
   - assign(t: Ticket, a: SupportAgent, now: double): AssignmentResult
 }
@@ -109,7 +101,7 @@ note right of AssignmentDispatcher
   Диспетчер выбора.
   Д2П2: findFreeAgent() ищет прибор по кольцу от agentPtr.
   Триггеры: onQueueNotEmpty(), onAgentFreed().
-  Нет свободного прибора - возвращает null.
+  Нет свободного прибора - возвращает Optional.empty.
 end note
 
 class AssignmentResult <<record>> {
@@ -135,15 +127,18 @@ end note
 
 class Statistics {
   - generatedCount: Map<String, Integer>
-  - refusedBySource: Map<String, Integer>
+  - refusedCount: Map<String, Integer>
+  - completedCount: Map<String, Integer>
   - sumWait: Map<String, Double>
   - sumService: Map<String, Double>
+  - sumWaitSq: Map<String, Double>
+  - sumServiceSq: Map<String, Double>
   --
-  + recordGenerated(s: String): void
-  + recordRefused(s: String): void
-  + timeBuffAndService(t: Ticket): void
+  + recordGenerated(sourceId: String): void
+  + recordRefused(sourceId: String): void
+  + recordCompleted(t: Ticket): void
   + printStatistics(): void
-}
+   }
 note right of Statistics
   ОР1: таблица по источникам (pотк, TБП, Tобсл, Tпреб)
   и по приборам (Kисп = busyTime / totalTime)
@@ -178,8 +173,8 @@ class Simulation {
   - queue: TicketQueue
   --
   + start(): void
-  + runNextEvent(): void
   + runUntilFinished(): void
+  + runNextEvent(): void
   + printState(): void
   - handleArrival(source: Source): void
   - handleServiceCompleted(agent: SupportAgent): void
@@ -187,12 +182,13 @@ class Simulation {
   - scheduleServiceCompletion(agent: SupportAgent, time: double): void
 }
 
-Simulation *-- EventCalendar
-Simulation *-- "1..*" Source
-Simulation *-- "1..*" SupportAgent
-Simulation *-- TicketRouter
-Simulation *-- AssignmentDispatcher
-Simulation *-- Statistics
+Simulation o-- EventCalendar
+Simulation o-- "1..*" Source
+Simulation o-- "1..*" SupportAgent
+Simulation o-- TicketRouter
+Simulation o-- AssignmentDispatcher
+Simulation o-- Statistics
+Simulation o-- TicketQueue : queue
 
 TicketRouter o-- TicketQueue : queue
 TicketRouter o-- Statistics : stats
