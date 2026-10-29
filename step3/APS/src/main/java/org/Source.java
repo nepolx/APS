@@ -22,7 +22,7 @@ public class Source {
     }
 
     public Ticket generateTicket(double now) {
-        String ticketId = "TKT-" + (ticketCounter++);
+        String ticketId = this.id + "." + (++ticketCounter);
         return new Ticket(ticketId, this.id, this.tariff, now);
     }
 
@@ -35,4 +35,7 @@ public class Source {
         return id;
     }
 
+    public TariffType getTariff() {
+        return tariff;
+    }
 }

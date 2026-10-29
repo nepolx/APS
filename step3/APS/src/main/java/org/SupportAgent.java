@@ -19,6 +19,7 @@ public class SupportAgent {
     }
 
     public double process(Ticket ticket, double now) {
+        ticket.setAgentId(id);
         status = AgentStatus.BUSY;
         currentTicket = ticket;
         currentTicket.markProcessing(now);

@@ -13,6 +13,7 @@ public class Ticket {
     private Double queuedAt = null;
     private Double serviceStartedAt = null;
     private Double finishedAt = null;
+    private String agentId;
 
     public Ticket(String id, String sourceId, TariffType tariff, double createdAt) {
         this.id = id;
@@ -63,6 +64,17 @@ public class Ticket {
     public Double getQueuedAt() {
         return queuedAt;
     }
+
+    public Double getCreatedAt() {
+        return createdAt;
+    }
+
+    public TicketStatus getStatus() {
+        return status;
+    }
+    public String getAgentId() { return agentId; }
+    public void setAgentId(String agentId) { this.agentId = agentId; }
+
 
     public void setQueuedAt(Double queuedAt) {
         this.queuedAt = queuedAt;

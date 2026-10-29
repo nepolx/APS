@@ -60,4 +60,7 @@ public class Statistics {
                     id, generated, refused, pRefuse, avgWait + avgService, avgWait, avgService, varWait, varService);
         }
     }
+
+    public int getGenerated(String sourceId) { return generatedCount.getOrDefault(sourceId, 0); }
+    public int getRefused(String sourceId) { return refusedCount.getOrDefault(sourceId, 0); }
 }
