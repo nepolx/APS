@@ -1,29 +1,17 @@
 package org;
 
-/**
- * TicketQueue — буфер (кольцевая очередь фиксированного размера).
- *
- * Соответствует классу TicketQueue на диаграмме классов.
- *
- * Д1ОЗ1 — постановка "по кольцу" от указателя queuePtr.
- * Д1ОО1 — если findFreeSlot() не нашёл места, вытесняется заявка
- *         под текущим положением указателя.
- * Д2Б4  — выбор ОДНОЙ заявки с наивысшим приоритетом источника,
- *         БЕЗ обхода по кольцу (просто максимум среди занятых слотов),
- *
- */
+
 public class TicketQueue {
 
     private final Ticket[] slots;
     private final int capacity;
-    private int queuePtr = 0; // единственный указатель буфера
+    private int queuePtr = 0;
 
     public TicketQueue(int capacity) {
         this.capacity = capacity;
         this.slots = new Ticket[capacity];
     }
 
-    // Постановка (Д1ОЗ1)
 
     public int findFreeSlot() {
         for (int i = 0; i < capacity; i++) {
@@ -42,9 +30,6 @@ public class TicketQueue {
         queuePtr = (slot + 1) % capacity;
     }
 
-    // ------------------------------------------------------------------
-    // Отказ / вытеснение (Д1ОО1) — вызывается ТОЛЬКО если findFreeSlot() == -1
-    // ------------------------------------------------------------------
 
     public Ticket evictAt(double now) {
         Ticket refused = slots[queuePtr];
@@ -55,10 +40,6 @@ public class TicketQueue {
         slots[queuePtr] = null;
         return refused;
     }
-
-    // ------------------------------------------------------------------
-    // Выборка (Д2Б4)
-    // ------------------------------------------------------------------
 
     public Ticket selectHighestPriority() {
         double earliest_queuedAt = 0;

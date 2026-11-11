@@ -7,6 +7,7 @@ public class SupportAgent {
     private AgentStatus status = AgentStatus.FREE;
     private Ticket currentTicket = null;
     private final double serviceRateLambda;
+    private double busyTime = 0;
     private final Random random = new Random();
 
     public SupportAgent(String id, double serviceRateLambda) {
@@ -19,7 +20,6 @@ public class SupportAgent {
     }
 
     public double process(Ticket ticket, double now) {
-        ticket.setAgentId(id);
         status = AgentStatus.BUSY;
         currentTicket = ticket;
         currentTicket.markProcessing(now);
@@ -33,13 +33,17 @@ public class SupportAgent {
     public Ticket release(double now) {
         Ticket ticket = currentTicket;
         ticket.markDone(now);
+        busyTime += now - ticket.getServiceStartedAt();
         status = AgentStatus.FREE;
         currentTicket = null;
         return ticket;
     }
 
+    public double getBusyTime() {
+        return busyTime;
+    }
+
     public String getId() {
         return id;
     }
-
 }

@@ -34,17 +34,17 @@ public class Statistics {
         sumServiceSq.merge(id, service * service, Double::sum);
     }
 
-    public int getTotalGenerated() {
-        return generatedCount.values().stream().mapToInt(Integer::intValue).sum();
+    public int getGenerated(String sourceId) {
+        return generatedCount.getOrDefault(sourceId, 0);
     }
 
-    public int getTotalRefused() {
-        return refusedCount.values().stream().mapToInt(Integer::intValue).sum();
+    public int getRefused(String sourceId) {
+        return refusedCount.getOrDefault(sourceId, 0);
     }
 
-    // ОР1, таблица 1: характеристики источников
     public void printStatistics() {
-        System.out.println("Источник | заявок | отказов | pотк | Tпреб | TБП | Tобсл | ДБП | Добсл");
+        System.out.printf("%-10s %-8s %-8s %-8s %-8s %-8s %-8s %s%n",
+                "Источник", "Заявок", "pотк", "Tпреб", "TБП", "Tобсл", "ДБП", "Добсл");
         for (String id : generatedCount.keySet()) {
             int generated = generatedCount.get(id);
             int refused = refusedCount.getOrDefault(id, 0);
@@ -56,11 +56,8 @@ public class Statistics {
             double varWait = completed == 0 ? 0 : sumWaitSq.getOrDefault(id, 0.0) / completed - avgWait * avgWait;
             double varService = completed == 0 ? 0 : sumServiceSq.getOrDefault(id, 0.0) / completed - avgService * avgService;
 
-            System.out.printf("%s | %d | %d | %.3f | %.3f | %.3f | %.3f | %.3f | %.3f%n",
-                    id, generated, refused, pRefuse, avgWait + avgService, avgWait, avgService, varWait, varService);
+            System.out.printf("%-10s %-8d %-8.3f %-8.3f %-8.3f %-8.3f %-8.3f %.3f%n",
+                    id, generated, pRefuse, avgWait + avgService, avgWait, avgService, varWait, varService);
         }
     }
-
-    public int getGenerated(String sourceId) { return generatedCount.getOrDefault(sourceId, 0); }
-    public int getRefused(String sourceId) { return refusedCount.getOrDefault(sourceId, 0); }
 }

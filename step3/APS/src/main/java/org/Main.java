@@ -5,17 +5,14 @@ public class Main {
         Statistics stats = new Statistics();
         EventCalendar calendar = new EventCalendar();
 
-        // буфер на 4 места, чтобы отказы появились быстро
-        TicketQueue queue = new TicketQueue(4);
+        TicketQueue queue = new TicketQueue(2);
 
-        // три источника по тарифам, интервал между заявками ~ Uniform(1, 3) (ИЗ2)
         Source[] sources = {
-                new Source("S1", TariffType.BASIC, 1.0, 3.0),
-                new Source("S2", TariffType.BUSINESS, 1.0, 3.0),
-                new Source("S3", TariffType.PREMIUM, 1.0, 3.0)
+                new Source("S1", TariffType.BASIC, 0.5, 1.5),
+                new Source("S2", TariffType.BUSINESS, 0.5, 1.5),
+                new Source("S3", TariffType.PREMIUM, 0.5, 1.5)
         };
 
-        // два прибора, время обслуживания ~ Exp(0.5), в среднем 2 единицы (ПЗ1)
         SupportAgent[] agents = {
                 new SupportAgent("A1", 0.5),
                 new SupportAgent("A2", 0.5)
@@ -25,8 +22,8 @@ public class Main {
         AssignmentDispatcher dispatcher = new AssignmentDispatcher(queue, agents);
 
         Simulation simulation = new Simulation(
-                100.0,      // endTime: после этого момента новые заявки не генерируются
-                20,         // maxGeneratedTickets
+                100.0,
+                10,
                 sources,
                 calendar,
                 queue,
@@ -36,7 +33,7 @@ public class Main {
                 stats
         );
 
-        simulation.setStepMode(true); // пошаговый режим: календарь, приборы, временная диаграмма
-        simulation.start();           // в конце выведется таблица статистики (ОР1)
+        simulation.setStepMode(true);
+        simulation.start();
     }
 }

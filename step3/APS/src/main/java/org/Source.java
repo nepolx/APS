@@ -26,7 +26,6 @@ public class Source {
         return new Ticket(ticketId, this.id, this.tariff, now);
     }
 
-    /** ИЗ2 — равномерный закон */
     public double nextInterval() {
         return genIntervalMin + random.nextDouble() * (genIntervalMax - genIntervalMin);
     }

@@ -14,45 +14,29 @@ public class AssignmentDispatcher {
     }
 
     public Optional<AssignmentResult> onQueueNotEmpty(double now) {
-        SupportAgent agent = findFreeAgent();
-
-        if (agent == null) {
+        int idx = findFreeAgentIndex();
+        if (idx == -1) {
             return Optional.empty();
         }
-
         Ticket ticket = queue.selectHighestPriority();
-
         if (ticket == null) {
             return Optional.empty();
         }
-
-        return Optional.of(assign(ticket, agent, now));
-    }
-
-    private AssignmentResult assign(Ticket ticket, SupportAgent agent, double now) {
+        SupportAgent agent = agents[idx];
         queue.freeSlot(ticket.getSlotIndex());
-
         double duration = agent.process(ticket, now);
-
-        advanceAgentPtr();
-
-        return new AssignmentResult(agent, duration);
+        agentPtr = (idx + 1) % agents.length;
+        return Optional.of(new AssignmentResult(agent, duration));
     }
 
-    private void advanceAgentPtr() {
-        agentPtr = (agentPtr + 1) % agents.length;
-    }
-
-    private SupportAgent findFreeAgent() {
+    private int findFreeAgentIndex() {
         for (int i = 0; i < agents.length; i++) {
-            SupportAgent agent = agents[(agentPtr + i) % agents.length];
-
-            if (agent.isFree()) {
-                return agent;
+            int idx = (agentPtr + i) % agents.length;
+            if (agents[idx].isFree()) {
+                return idx;
             }
         }
-
-        return null;
+        return -1;
     }
 
     public Optional<AssignmentResult> onAgentFreed(SupportAgent agent, double now) {

@@ -4,12 +4,11 @@ public class Ticket {
     private final String id;
     private final String sourceId;
     private final TariffType tariff;
-    private final double createdAt;          // модельное время генерации (ИЗ2)
+    private final double createdAt;
 
     private TicketStatus status = TicketStatus.WAITING;
-    private Integer slotIndex = null;         // позиция в буфере (для отображения указателей
+    private Integer slotIndex = null;
 
-    // метки времени  нужны для статистики (ожидание/обслуживание/в системе), ОР1
     private Double queuedAt = null;
     private Double serviceStartedAt = null;
     private Double finishedAt = null;

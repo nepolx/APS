@@ -94,9 +94,9 @@ class AssignmentDispatcher {
   --
   + onQueueNotEmpty(now: double): Optional<AssignmentResult>
   + onAgentFreed(a: SupportAgent, now: double): Optional<AssignmentResult>
-  - findFreeAgent(): SupportAgent
-  - assign(t: Ticket, a: SupportAgent, now: double): AssignmentResult
-}
+  - findFreeAgentIndex(): int
+  
+  }
 note right of AssignmentDispatcher
   Диспетчер выбора.
   Д2П2: findFreeAgent() ищет прибор по кольцу от agentPtr.
@@ -157,6 +157,7 @@ class EventCalendar {
   + schedule(event: SimulationEvent): void
   + nextEvent(): SimulationEvent
   + isEmpty(): boolean
+  + removeArrivals(): void
 }
 
 class Simulation {

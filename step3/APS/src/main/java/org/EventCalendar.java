@@ -38,4 +38,8 @@ public class EventCalendar {
 
         return result;
     }
+
+    public void removeArrivals() {
+        events.removeIf(e -> e.type() == EventType.ARRIVAL);
+    }
 }
