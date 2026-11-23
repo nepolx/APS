@@ -21,7 +21,6 @@ public class Statistics {
         refusedCount.merge(sourceId, 1, Integer::sum);
     }
 
-    // вызывается при SERVICE_COMPLETED, когда у заявки уже проставлены все метки времени
     public void recordCompleted(Ticket ticket) {
         String id = ticket.getSourceId();
         double wait = ticket.getServiceStartedAt() - ticket.getQueuedAt();
@@ -59,5 +58,13 @@ public class Statistics {
             System.out.printf("%-10s %-8d %-8.3f %-8.3f %-8.3f %-8.3f %-8.3f %.3f%n",
                     id, generated, pRefuse, avgWait + avgService, avgWait, avgService, varWait, varService);
         }
+    }
+
+    public int getTotalGenerated() {
+        return generatedCount.values().stream().mapToInt(Integer::intValue).sum();
+    }
+
+    public int getTotalRefused() {
+        return refusedCount.values().stream().mapToInt(Integer::intValue).sum();
     }
 }

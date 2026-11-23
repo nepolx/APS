@@ -47,20 +47,33 @@ public class Simulation {
         this.stepMode = stepMode;
     }
 
+    // Пошаговый режим
     public void start() {
+        run();
+        printResults();
+    }
+
+    public void run() {
         currentTime = 0.0;
         generatedTickets = 0;
         for (Source source : sources) {
             scheduleNextArrival(source);
         }
         runUntilFinished();
+    }
 
+    public void printResults() {
         System.out.println();
         System.out.println("Таблица 1. Характеристики источников");
         stats.printStatistics();
         System.out.println();
         System.out.println("Таблица 2. Характеристики приборов");
         printAgentTable();
+    }
+
+    public double getRefusalRate() {
+        int generated = stats.getTotalGenerated();
+        return generated == 0 ? 0 : (double) stats.getTotalRefused() / generated;
     }
 
     public void runNextEvent() {
@@ -151,8 +164,8 @@ public class Simulation {
             int generated = stats.getGenerated(s.getId());
             int refused = stats.getRefused(s.getId());
             double percent = generated == 0 ? 0 : 100.0 * refused / generated;
-            System.out.printf("  %s: заявок %d, отказов %d, %% отказа %.1f%n",
-                    s.getId(), generated, refused, percent);
+            System.out.printf("  %s: тариф %s, заявок %d, отказов %d, %% отказа %.1f%n",
+                    s.getId(), s.getTariff(), generated, refused, percent);
         }
 
         System.out.println("Буфер:");
@@ -165,8 +178,21 @@ public class Simulation {
 
         System.out.println("Приборы:");
         for (int i = 0; i < agents.length; i++) {
+            SupportAgent agent = agents[i];
+
+            String status;
+
+            if (agent.isFree()) {
+                status = "свободен";
+            } else {
+                Ticket ticket = agent.getCurrentTicket();
+                status = "занят заявкой " + ticket.getId()
+                        + " (" + ticket.getTariff() + ")";
+            }
+
             String ptr = (i == dispatcher.getAgentPtr()) ? "   <- AGENT_PTR" : "";
-            System.out.println("  " + agents[i].getId() + ": " + (agents[i].isFree() ? "свободен" : "занят") + ptr);
+
+            System.out.println("  " + agent.getId() + ": " + status + ptr);
         }
     }
 
@@ -176,5 +202,9 @@ public class Simulation {
             double k = currentTime == 0 ? 0 : a.getBusyTime() / currentTime;
             System.out.printf("%-10s %.3f%n", a.getId(), k);
         }
+    }
+
+    public int getGeneratedTickets() {
+        return generatedTickets;
     }
 }

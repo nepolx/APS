@@ -26,6 +26,10 @@ public class SupportAgent {
         return serviceTime();
     }
 
+    public Ticket getCurrentTicket() {
+        return currentTicket;
+    }
+
     private double serviceTime() {
         return -Math.log(1 - random.nextDouble()) / serviceRateLambda;
     }

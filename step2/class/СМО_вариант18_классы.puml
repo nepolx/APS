@@ -177,11 +177,28 @@ class Simulation {
   + runUntilFinished(): void
   + runNextEvent(): void
   + printState(): void
+  + run(): void
+  + printResults(): void
+  + getRefusalRate(): double
   - handleArrival(source: Source): void
   - handleServiceCompleted(agent: SupportAgent): void
   - scheduleNextArrival(source: Source): void
   - scheduleServiceCompletion(agent: SupportAgent, time: double): void
 }
+
+class ExperimentRunner {
+  - bufferCapacity: int
+  - genMin: double
+  - genMax: double
+  - agentCount: int
+  - serviceLambda: double
+  --
+  + build(n: int, stepMode: boolean): Simulation
+  + runToAccuracy(): void
+  + calcRequiredN(p: double): int
+}
+
+ExperimentRunner ..> Simulation : создаёт
 
 Simulation o-- EventCalendar
 Simulation o-- "1..*" Source
